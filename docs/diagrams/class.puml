@@ -1,0 +1,91 @@
+@startuml
+skinparam classAttributeIconSize 0
+abstract class User {
+  -id : int
+  -email : str
+  -name : str
+  -passwordHash : str
+  -isBlocked : bool
+  +checkPassword(password : str) : bool
+}
+class Player {
+  -phone : str
+  +getBookings() : List<Booking>
+}
+class CourtAdmin {
+  +updateSchedule(court : Court, schedule : Schedule) : void
+}
+class SportsComplex {
+  -id : int
+  -name : str
+  -address : str
+  -district : str
+  +getCourts() : List<Court>
+}
+class Court {
+  -id : int
+  -name : str
+  -sportType : SportType
+  -pricePerHour : Decimal
+  +getFreeSlots(day : date) : List<TimeSlot>
+}
+class TimeSlot {
+  -start : datetime
+  -end : datetime
+  +isAvailable() : bool
+}
+class Booking {
+  -id : int
+  -status : BookingStatus
+  -createdAt : datetime
+  +confirm() : void
+  +cancel() : void
+  +canBeCancelled(now : datetime) : bool
+}
+class Payment {
+  -id : int
+  -amount : Decimal
+  -status : PaymentStatus
+  -externalId : str
+}
+interface PaymentGateway {
+  +createPayment(booking : Booking) : Payment
+  +handleCallback(data : dict) : PaymentStatus
+}
+class LiqPayGateway
+class BookingService {
+  +book(player : Player, slot : TimeSlot) : Booking
+  +cancel(booking : Booking) : void
+}
+enum SportType {
+  TENNIS
+  FOOTBALL
+  BASKETBALL
+  PADEL
+}
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+User <|-- Player
+User <|-- CourtAdmin
+SportsComplex "1" *-- "1..*" Court : містить
+SportsComplex "1" o-- "1..*" CourtAdmin : адмініструють
+Court "1" *-- "0..*" TimeSlot : має
+Player "1" --> "0..*" Booking : створює
+Booking "0..*" --> "1" TimeSlot : займає
+Booking "1" -- "0..1" Payment : оплачується
+PaymentGateway <|.. LiqPayGateway
+BookingService ..> PaymentGateway : використовує
+BookingService ..> Booking
+Court --> SportType
+Booking --> BookingStatus
+Payment --> PaymentStatus
+@enduml

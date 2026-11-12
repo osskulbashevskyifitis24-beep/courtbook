@@ -1,0 +1,41 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+actor "Гість" as Guest
+actor "Гравець" as Player
+actor "Адміністратор\nмайданчика" as CourtAdmin
+actor "Адміністратор\nсистеми" as SysAdmin
+actor "Платіжна система" as Pay <<system>>
+Player --|> Guest
+
+rectangle "CourtBook" {
+  usecase "Зареєструватись" as UC1
+  usecase "Увійти в систему" as UC2
+  usecase "Переглянути каталог\nмайданчиків" as UC3
+  usecase "Переглянути вільні слоти" as UC4
+  usecase "Забронювати слот" as UC5
+  usecase "Оплатити бронювання" as UC6
+  usecase "Скасувати бронювання" as UC7
+  usecase "Отримати нагадування" as UC8
+  usecase "Керувати розкладом\nі цінами" as UC9
+  usecase "Обробити бронювання" as UC10
+  usecase "Керувати користувачами" as UC11
+  usecase "Автентифікуватись" as UCA
+}
+Guest --> UC1
+Guest --> UC3
+Guest --> UC4
+Player --> UC2
+Player --> UC5
+Player --> UC7
+Player --> UC8
+CourtAdmin --> UC9
+CourtAdmin --> UC10
+SysAdmin --> UC11
+UC6 --> Pay
+UC5 ..> UCA : <<include>>
+UC7 ..> UCA : <<include>>
+UC9 ..> UCA : <<include>>
+UC6 ..> UC5 : <<extend>>
+UC8 ..> UC5 : <<extend>>
+@enduml

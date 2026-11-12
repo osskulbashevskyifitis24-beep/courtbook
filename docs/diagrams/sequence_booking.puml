@@ -1,0 +1,38 @@
+@startuml
+actor "Гравець" as Player
+participant "Веб-інтерфейс" as UI
+participant "BookingController" as Ctrl
+participant "BookingService" as Svc
+participant "BookingRepository" as Repo
+database "PostgreSQL" as DB
+participant "LiqPayGateway" as Pay
+
+Player -> UI : Натискає «Забронювати» (слот)
+UI -> Ctrl : POST /bookings {courtId, start}
+activate Ctrl
+Ctrl -> Svc : book(player, slot)
+activate Svc
+Svc -> Repo : lockSlot(courtId, start)
+activate Repo
+Repo -> DB : SELECT ... FOR UPDATE
+DB --> Repo : стан слоту
+deactivate Repo
+alt Слот вільний
+  Svc -> Repo : create(booking, PENDING_PAYMENT)
+  Repo -> DB : INSERT INTO bookings
+  DB --> Repo : bookingId
+  Svc -> Pay : createPayment(booking)
+  activate Pay
+  Pay --> Svc : paymentUrl
+  deactivate Pay
+  Svc --> Ctrl : booking, paymentUrl
+  Ctrl --> UI : 201 Created
+  UI --> Player : Перенаправлення на сторінку оплати
+else Слот уже зайнято
+  Svc --> Ctrl : SlotUnavailableError
+  Ctrl --> UI : 409 Conflict
+  UI --> Player : «Слот уже зайнято», інші слоти
+end
+deactivate Svc
+deactivate Ctrl
+@enduml
