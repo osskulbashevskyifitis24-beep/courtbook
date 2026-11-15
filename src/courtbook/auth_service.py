@@ -1,65 +1,35 @@
-import re
-import hashlib
-import hmac
-import os
-import sqlite3
+"""Business logic for registration and login (US-001, US-002)."""
+from .repository import UserRepository
+from .security import hash_password, verify_password
+from .validation import ValidationError, validate_email, validate_registration
+
+DEFAULT_ROLE = "client"
 
 
-def register_user(email, password, name, phone, db_path):
-    # validate email
-    if email is None or email == "":
-        return {"ok": False, "error": "Email is required"}
-    if len(email) > 254:
-        return {"ok": False, "error": "Email is too long"}
-    if not re.match(r"^[\w.+-]+@[\w-]+\.[\w.-]+$", email):
-        return {"ok": False, "error": "Invalid email"}
-    # validate password
-    if password is None or len(password) < 8:
-        return {"ok": False, "error": "Password too short"}
-    has_upper = False
-    has_digit = False
-    for ch in password:
-        if ch.isupper():
-            has_upper = True
-        if ch.isdigit():
-            has_digit = True
-    if not has_upper or not has_digit:
-        return {"ok": False, "error": "Weak password"}
-    # validate phone
-    if phone:
-        if not phone.startswith("+380") or len(phone) != 13:
-            return {"ok": False, "error": "Invalid phone"}
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM users WHERE email = ?", (email.lower(),))
-    if cur.fetchone():
-        conn.close()
-        return {"ok": False, "error": "User already exists"}
-    salt = os.urandom(16)
-    pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
-    cur.execute(
-        "INSERT INTO users (email, name, phone, password_hash, salt, role) VALUES (?, ?, ?, ?, ?, ?)",
-        (email.lower(), name, phone, pwd_hash.hex(), salt.hex(), "client"),
-    )
-    conn.commit()
-    user_id = cur.lastrowid
-    conn.close()
-    return {"ok": True, "user_id": user_id}
+class UserAlreadyExistsError(Exception):
+    pass
 
 
-def login_user(email, password, db_path):
-    if email is None or email == "":
-        return {"ok": False, "error": "Email is required"}
-    if not re.match(r"^[\w.+-]+@[\w-]+\.[\w.-]+$", email):
-        return {"ok": False, "error": "Invalid email"}
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-    cur.execute("SELECT id, password_hash, salt FROM users WHERE email = ?", (email.lower(),))
-    row = cur.fetchone()
-    conn.close()
-    if row is None:
-        return {"ok": False, "error": "Invalid credentials"}
-    pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(row[2]), 100000)
-    if not hmac.compare_digest(pwd_hash.hex(), row[1]):
-        return {"ok": False, "error": "Invalid credentials"}
-    return {"ok": True, "user_id": row[0]}
+class InvalidCredentialsError(Exception):
+    pass
+
+
+class AuthService:
+    def __init__(self, repository: UserRepository):
+        self.repository = repository
+
+    def register(self, email: str, password: str, name: str, phone: str | None = None) -> int:
+        validate_registration(email, password, phone)
+        normalized = email.lower()
+        if self.repository.find_by_email(normalized):
+            raise UserAlreadyExistsError(normalized)
+        password_hash, salt = hash_password(password)
+        return self.repository.create(normalized, name, phone, password_hash, salt, DEFAULT_ROLE)
+
+    def login(self, email: str, password: str) -> int:
+        if not validate_email(email):
+            raise ValidationError("Invalid email")
+        user = self.repository.find_by_email(email.lower())
+        if user is None or not verify_password(password, user["password_hash"], user["salt"]):
+            raise InvalidCredentialsError()
+        return user["id"]
