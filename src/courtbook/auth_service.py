@@ -1,34 +1,16 @@
-import re
 import hashlib
 import hmac
 import os
 import sqlite3
 
+from .validation import ValidationError, validate_email, validate_registration
+
 
 def register_user(email, password, name, phone, db_path):
-    # validate email
-    if email is None or email == "":
-        return {"ok": False, "error": "Email is required"}
-    if len(email) > 254:
-        return {"ok": False, "error": "Email is too long"}
-    if not re.match(r"^[\w.+-]+@[\w-]+\.[\w.-]+$", email):
-        return {"ok": False, "error": "Invalid email"}
-    # validate password
-    if password is None or len(password) < 8:
-        return {"ok": False, "error": "Password too short"}
-    has_upper = False
-    has_digit = False
-    for ch in password:
-        if ch.isupper():
-            has_upper = True
-        if ch.isdigit():
-            has_digit = True
-    if not has_upper or not has_digit:
-        return {"ok": False, "error": "Weak password"}
-    # validate phone
-    if phone:
-        if not phone.startswith("+380") or len(phone) != 13:
-            return {"ok": False, "error": "Invalid phone"}
+    try:
+        validate_registration(email, password, phone)
+    except ValidationError as e:
+        return {"ok": False, "error": str(e)}
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute("SELECT id FROM users WHERE email = ?", (email.lower(),))
@@ -48,9 +30,7 @@ def register_user(email, password, name, phone, db_path):
 
 
 def login_user(email, password, db_path):
-    if email is None or email == "":
-        return {"ok": False, "error": "Email is required"}
-    if not re.match(r"^[\w.+-]+@[\w-]+\.[\w.-]+$", email):
+    if not validate_email(email):
         return {"ok": False, "error": "Invalid email"}
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
