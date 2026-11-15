@@ -31,7 +31,7 @@ def register_user(email, password, name, phone, db_path):
             return {"ok": False, "error": "Invalid phone"}
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    cur.execute("SELECT id FROM users WHERE email = ?", (email,))
+    cur.execute("SELECT id FROM users WHERE email = ?", (email.lower(),))
     if cur.fetchone():
         conn.close()
         return {"ok": False, "error": "User already exists"}
@@ -39,7 +39,7 @@ def register_user(email, password, name, phone, db_path):
     pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
     cur.execute(
         "INSERT INTO users (email, name, phone, password_hash, salt, role) VALUES (?, ?, ?, ?, ?, ?)",
-        (email, name, phone, pwd_hash.hex(), salt.hex(), "client"),
+        (email.lower(), name, phone, pwd_hash.hex(), salt.hex(), "client"),
     )
     conn.commit()
     user_id = cur.lastrowid
@@ -54,7 +54,7 @@ def login_user(email, password, db_path):
         return {"ok": False, "error": "Invalid email"}
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    cur.execute("SELECT id, password_hash, salt FROM users WHERE email = ?", (email,))
+    cur.execute("SELECT id, password_hash, salt FROM users WHERE email = ?", (email.lower(),))
     row = cur.fetchone()
     conn.close()
     if row is None:
