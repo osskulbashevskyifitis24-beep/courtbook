@@ -33,6 +33,7 @@ def register_user(email, password, name, phone, db_path):
     cur = conn.cursor()
     cur.execute("SELECT id FROM users WHERE email = ?", (email,))
     if cur.fetchone():
+        conn.close()
         return {"ok": False, "error": "User already exists"}
     salt = os.urandom(16)
     pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
