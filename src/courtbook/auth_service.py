@@ -6,34 +6,50 @@ from .validation import ValidationError, validate_email, validate_registration
 DEFAULT_ROLE = "client"
 
 
+class UserAlreadyExistsError(Exception):
+    pass
+
+
+class InvalidCredentialsError(Exception):
+    pass
+
+
 class AuthService:
     def __init__(self, repository: UserRepository):
         self.repository = repository
 
-    def register(self, email: str, password: str, name: str, phone: str | None = None) -> dict:
-        try:
-            validate_registration(email, password, phone)
-        except ValidationError as e:
-            return {"ok": False, "error": str(e)}
+    def register(self, email: str, password: str, name: str, phone: str | None = None) -> int:
+        validate_registration(email, password, phone)
         normalized = email.lower()
         if self.repository.find_by_email(normalized):
-            return {"ok": False, "error": "User already exists"}
+            raise UserAlreadyExistsError(normalized)
         password_hash, salt = hash_password(password)
-        user_id = self.repository.create(normalized, name, phone, password_hash, salt, DEFAULT_ROLE)
-        return {"ok": True, "user_id": user_id}
+        return self.repository.create(normalized, name, phone, password_hash, salt, DEFAULT_ROLE)
 
-    def login(self, email: str, password: str) -> dict:
+    def login(self, email: str, password: str) -> int:
         if not validate_email(email):
-            return {"ok": False, "error": "Invalid email"}
+            raise ValidationError("Invalid email")
         user = self.repository.find_by_email(email.lower())
         if user is None or not verify_password(password, user["password_hash"], user["salt"]):
-            return {"ok": False, "error": "Invalid credentials"}
-        return {"ok": True, "user_id": user["id"]}
+            raise InvalidCredentialsError()
+        return user["id"]
 
 
 def register_user(email, password, name, phone, db_path):
-    return AuthService(SqliteUserRepository(db_path)).register(email, password, name, phone)
+    try:
+        user_id = AuthService(SqliteUserRepository(db_path)).register(email, password, name, phone)
+    except ValidationError as e:
+        return {"ok": False, "error": str(e)}
+    except UserAlreadyExistsError:
+        return {"ok": False, "error": "User already exists"}
+    return {"ok": True, "user_id": user_id}
 
 
 def login_user(email, password, db_path):
-    return AuthService(SqliteUserRepository(db_path)).login(email, password)
+    try:
+        user_id = AuthService(SqliteUserRepository(db_path)).login(email, password)
+    except ValidationError as e:
+        return {"ok": False, "error": str(e)}
+    except InvalidCredentialsError:
+        return {"ok": False, "error": "Invalid credentials"}
+    return {"ok": True, "user_id": user_id}
