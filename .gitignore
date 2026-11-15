@@ -5,3 +5,5 @@ instance/
 .DS_Store
 .coverage
 .pytest_cache/
+reports/
+coverage.xml
