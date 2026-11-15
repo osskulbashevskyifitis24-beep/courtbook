@@ -1,4 +1,5 @@
 # CourtBook
+![CI](https://github.com/osskulbashevskyifitis24-beep/courtbook/actions/workflows/ci.yml/badge.svg)
 
 CourtBook — веб-сервіс онлайн-бронювання спортивних майданчиків (тенісні корти,
 міні-футбольні поля, баскетбольні майданчики). Гравці бачать вільні слоти та
