@@ -56,6 +56,16 @@ class TestValidatePassword:
             validate_password(None)
 
 
+class TestValidatePhone:
+    @pytest.mark.parametrize("phone", ["+380671234567", None, ""])
+    def test_should_return_true_when_phone_valid_or_empty(self, phone):
+        assert validate_phone(phone) is True
+
+    @pytest.mark.parametrize("phone", ["0671234567", "+38067123456", "+380abcdefghi"])
+    def test_should_return_false_when_phone_invalid(self, phone):
+        assert validate_phone(phone) is False
+
+
 def test_should_raise_validation_error_when_registration_data_invalid():
     with pytest.raises(ValidationError):
         validate_registration("bad-email", "Court2026")
