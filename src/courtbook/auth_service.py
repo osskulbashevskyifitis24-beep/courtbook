@@ -1,5 +1,6 @@
 import re
 import hashlib
+import hmac
 import os
 import sqlite3
 
@@ -58,6 +59,6 @@ def login_user(email, password, db_path):
     if row is None:
         return {"ok": False, "error": "Invalid credentials"}
     pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(row[2]), 100000)
-    if pwd_hash.hex() != row[1]:
+    if not hmac.compare_digest(pwd_hash.hex(), row[1]):
         return {"ok": False, "error": "Invalid credentials"}
     return {"ok": True, "user_id": row[0]}
