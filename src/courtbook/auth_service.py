@@ -1,4 +1,6 @@
 import re
+import hashlib
+import os
 import sqlite3
 
 
@@ -31,10 +33,11 @@ def register_user(email, password, name, phone, db_path):
     cur.execute("SELECT id FROM users WHERE email = ?", (email,))
     if cur.fetchone():
         return {"ok": False, "error": "User already exists"}
-    # TODO: hash password
+    salt = os.urandom(16)
+    pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
     cur.execute(
         "INSERT INTO users (email, name, phone, password_hash, salt, role) VALUES (?, ?, ?, ?, ?, ?)",
-        (email, name, phone, password, "", "client"),
+        (email, name, phone, pwd_hash.hex(), salt.hex(), "client"),
     )
     conn.commit()
     user_id = cur.lastrowid
@@ -54,6 +57,7 @@ def login_user(email, password, db_path):
     conn.close()
     if row is None:
         return {"ok": False, "error": "Invalid credentials"}
-    if password != row[1]:
+    pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(row[2]), 100000)
+    if pwd_hash.hex() != row[1]:
         return {"ok": False, "error": "Invalid credentials"}
     return {"ok": True, "user_id": row[0]}
